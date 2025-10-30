@@ -3,6 +3,7 @@
 import { useContext, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AuthContext } from "@/context/AuthContext";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import { IoCalendarOutline, IoCheckmarkCircle } from "react-icons/io5";
 
 const mockPreviousSubscriptions = [
@@ -46,10 +47,16 @@ export default function PreviousSubscriptions() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!authContext?.token) {
+    // Only redirect after hydration is complete
+    if (authContext?.isHydrated && !authContext?.token) {
       router.push("/auth/login");
     }
-  }, [authContext?.token, router]);
+  }, [authContext?.token, authContext?.isHydrated, router]);
+
+  // Show loading state while hydrating
+  if (!authContext?.isHydrated) {
+    return <LoadingSpinner />;
+  }
 
   if (!authContext?.token) {
     return null;

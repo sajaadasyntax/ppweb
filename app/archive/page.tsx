@@ -3,9 +3,11 @@
 import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthContext } from "@/context/AuthContext";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import { IoCalendarOutline, IoDocument, IoDownload, IoSearch } from "react-icons/io5";
 import CustomButton from "@/components/CustomButton";
 import AppTextInput from "@/components/AppTextInput";
+import { apiClient } from "@/context/apiContext";
 
 interface Document {
   id: number;
@@ -17,6 +19,159 @@ interface Document {
   url: string;
 }
 
+const ArchivePage = () => {
+  const router = useRouter();
+  const authContext = useContext(AuthContext);
+  const { token } = authContext;
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("الكل");
+
+  useEffect(() => {
+    // Only redirect after hydration is complete
+    if (authContext?.isHydrated && !token) {
+      router.push("/auth/login");
+      return;
+    }
+
+    // Only fetch data after hydration and if we have a token
+    if (authContext?.isHydrated && token) {
+      const fetchArchiveData = async () => {
+        setLoading(true);
+        try {
+          const data = await apiClient.content.getArchive(token);
+          setDocuments(data.documents);
+          
+          // Extract unique categories and add "All" option
+          const uniqueCategories = ["الكل", ...new Set(data.documents.map((doc: Document) => doc.category))] as string[];
+          setCategories(uniqueCategories);
+        } catch (err) {
+          console.error("Error fetching archive data:", err);
+          setError("حدث خطأ في جلب البيانات");
+          
+          // Fallback to mock data for development
+          setDocuments(mockDocuments);
+          setCategories(["الكل", ...new Set(mockDocuments.map(doc => doc.category))]);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchArchiveData();
+    }
+  }, [token, authContext?.isHydrated, router]);
+
+  // Show loading state while hydrating
+  if (!authContext?.isHydrated) {
+    return <LoadingSpinner />;
+  }
+
+  const filteredDocuments = documents.filter(doc => {
+    const matchesSearch = searchText === "" || 
+      doc.title.toLowerCase().includes(searchText.toLowerCase());
+    const matchesCategory = selectedCategory === "الكل" || 
+      doc.category === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
+  });
+
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+  };
+
+  const handleDownload = (document: Document) => {
+    // Implement actual download logic
+    window.open(document.url, '_blank');
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p className="text-lg">جاري التحميل...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-6">
+      <h1 className="text-2xl font-bold mb-6 text-right">أرشيف الوثائق</h1>
+      
+      {/* Search and Filter */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between">
+        <div className="md:w-1/3">
+          <AppTextInput
+            placeholder="ابحث عن وثيقة..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            icon={<IoSearch />}
+          />
+        </div>
+        
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {categories.map((category) => (
+            <button
+              key={category}
+              onClick={() => handleCategoryChange(category)}
+              className={`px-4 py-2 rounded-full text-sm whitespace-nowrap ${
+                selectedCategory === category
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-100 text-red-700 p-4 rounded-md mb-6 text-right">
+          {error}
+        </div>
+      )}
+      
+      {/* Documents List */}
+      <div className="space-y-4">
+        {filteredDocuments.length === 0 ? (
+          <p className="text-center py-8 text-gray-500">لا توجد وثائق متاحة</p>
+        ) : (
+          filteredDocuments.map((doc) => (
+            <div key={doc.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg mb-1 text-right">{doc.title}</h3>
+                <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-600">
+                  <span className="flex items-center gap-1">
+                    <IoDocument />
+                    {doc.type}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <IoCalendarOutline />
+                    {doc.date}
+                  </span>
+                  <span>{doc.size}</span>
+                  <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">
+                    {doc.category}
+                  </span>
+                </div>
+              </div>
+              <CustomButton
+                title="تحميل"
+                icon={<IoDownload />}
+                onClick={() => handleDownload(doc)}
+                primary
+              />
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Fallback mock data if API fails
 const mockDocuments: Document[] = [
   {
     id: 1,
@@ -65,140 +220,4 @@ const mockDocuments: Document[] = [
   },
 ];
 
-const categories = [
-  "الكل",
-  "وثائق قانونية",
-  "تقارير",
-  "محاضر اجتماعات",
-  "خطط استراتيجية",
-  "ميزانيات",
-];
-
-export default function Archive() {
-  const authContext = useContext(AuthContext);
-  const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("الكل");
-  const [filteredDocuments, setFilteredDocuments] = useState<Document[]>(mockDocuments);
-
-  useEffect(() => {
-    if (!authContext?.token) {
-      router.push("/auth/login");
-    }
-  }, [authContext?.token, router]);
-
-  useEffect(() => {
-    let result = mockDocuments;
-    
-    // Filter by search term
-    if (searchTerm) {
-      result = result.filter(doc => 
-        doc.title.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    // Filter by category
-    if (selectedCategory !== "الكل") {
-      result = result.filter(doc => doc.category === selectedCategory);
-    }
-    
-    setFilteredDocuments(result);
-  }, [searchTerm, selectedCategory]);
-
-  if (!authContext?.token) {
-    return null;
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-primary p-6 rounded-b-3xl">
-        <h1 className="text-2xl font-bold text-white text-center">الأرشيف</h1>
-      </div>
-      
-      <div className="container mx-auto px-4 py-8">
-        {/* Search and Filter */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-grow">
-              <IoSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-secondary" />
-              <input
-                type="text"
-                placeholder="البحث في الوثائق..."
-                className="w-full pl-10 pr-10 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div className="w-full md:w-64">
-              <select
-                className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                {categories.map((category, index) => (
-                  <option key={index} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-        
-        {/* Documents List */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          {filteredDocuments.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-right text-text-secondary font-medium">اسم الوثيقة</th>
-                    <th className="px-6 py-3 text-right text-text-secondary font-medium">النوع</th>
-                    <th className="px-6 py-3 text-right text-text-secondary font-medium">التصنيف</th>
-                    <th className="px-6 py-3 text-right text-text-secondary font-medium">التاريخ</th>
-                    <th className="px-6 py-3 text-right text-text-secondary font-medium">الحجم</th>
-                    <th className="px-6 py-3 text-right text-text-secondary font-medium">تحميل</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredDocuments.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center">
-                          <IoDocument className="ml-2 text-primary" />
-                          <span className="text-text-primary font-medium">{doc.title}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-text-secondary">{doc.type}</td>
-                      <td className="px-6 py-4 text-text-secondary">{doc.category}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center text-text-secondary">
-                          <IoCalendarOutline className="ml-1" />
-                          <span>{doc.date}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-text-secondary">{doc.size}</td>
-                      <td className="px-6 py-4">
-                        <a 
-                          href={doc.url} 
-                          download
-                          className="p-2 text-primary hover:bg-primary/10 rounded-full inline-flex"
-                        >
-                          <IoDownload size={20} />
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="p-8 text-center">
-              <p className="text-text-secondary">لا توجد وثائق مطابقة لمعايير البحث</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-} 
+export default ArchivePage; 

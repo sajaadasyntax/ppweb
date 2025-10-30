@@ -1,15 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --background: #fff;
+  --foreground: #000;
+  --primary: #1F41BB;
+  --primary-light: #f1f4ff;
+  --primary-dark: #1a35a0;
+  --secondary: #ECECEC;
+  --secondary-light: #f1f4ff;
+  --secondary-dark: #626262;
+  --error: #FF5733;
+  --text-primary: #000;
+  --text-secondary: #626262;
+  --text-white: #fff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,5 +25,51 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Tajawal', Arial, Helvetica, sans-serif;
+  direction: rtl;
+}
+
+/* Custom font loading for Tajawal */
+@font-face {
+  font-family: 'Tajawal';
+  src: url('/fonts/Tajawal-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Tajawal';
+  src: url('/fonts/Tajawal-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+/* Utility classes matching pp.app */
+.font {
+  font-family: 'Tajawal' !important;
+  color: var(--text-white) !important;
+}
+
+/* RTL support */
+.rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark);
 }

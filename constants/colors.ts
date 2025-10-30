@@ -1,13 +1,13 @@
 export default {
-  primary: "#2E7D32",
-  primaryLight: "#60ad5e",
-  primaryDark: "#005005",
-  secondary: "#546E7A",
-  secondaryLight: "#819ca9",
-  secondaryDark: "#29434e",
+  primary: "#1F41BB", // Blue from pp.app
+  primaryLight: "#f1f4ff",
+  primaryDark: "#1a35a0",
+  secondary: "#ECECEC", // Gray from pp.app
+  secondaryLight: "#f1f4ff",
+  secondaryDark: "#626262",
   background: "#FFFFFF",
   surface: "#F5F5F5",
-  error: "#B00020",
+  error: "#FF5733",
   text: {
     primary: "#333333",
     secondary: "#666666",

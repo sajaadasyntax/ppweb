@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl">
-      <body className={`${tajawal.variable} font-sans`}>
+      <body className={`${tajawal.variable} font-sans rtl`}>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

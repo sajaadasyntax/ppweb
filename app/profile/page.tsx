@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AuthContext } from "@/context/AuthContext";
 import CustomButton from "@/components/CustomButton";
 import AppTextInput from "@/components/AppTextInput";
-import Image from "next/image";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import { IoCamera, IoLogOut, IoPersonCircle, IoSettings } from "react-icons/io5";
 
 export default function Profile() {
@@ -24,10 +24,16 @@ export default function Profile() {
   const [formData, setFormData] = useState({ ...userData });
 
   useEffect(() => {
-    if (!authContext?.token) {
+    // Only redirect after hydration is complete
+    if (authContext?.isHydrated && !authContext?.token) {
       router.push("/auth/login");
     }
-  }, [authContext?.token, router]);
+  }, [authContext?.token, authContext?.isHydrated, router]);
+
+  // Show loading state while hydrating
+  if (!authContext?.isHydrated) {
+    return <LoadingSpinner />;
+  }
 
   if (!authContext?.token) {
     return null;

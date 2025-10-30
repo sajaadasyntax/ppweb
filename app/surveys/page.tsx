@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AuthContext } from "@/context/AuthContext";
 import CustomButton from "@/components/CustomButton";
 import Link from "next/link";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import { IoCalendarOutline, IoPeople, IoPersonCircle } from "react-icons/io5";
 
 const publicSurveys = [
@@ -51,21 +52,34 @@ export default function Surveys() {
   const [activeTab, setActiveTab] = useState("public");
 
   useEffect(() => {
-    if (!authContext?.token) {
+    // Only redirect after hydration is complete
+    if (authContext?.isHydrated && !authContext?.token) {
       router.push("/auth/login");
     }
-  }, [authContext?.token, router]);
+  }, [authContext?.token, authContext?.isHydrated, router]);
+
+  // Show loading state while hydrating
+  if (!authContext?.isHydrated) {
+    return <LoadingSpinner />;
+  }
 
   if (!authContext?.token) {
     return null;
   }
 
-  const renderSurveyCard = (survey: any, type: string) => (
-    <div key={survey.id} className="bg-white rounded-lg shadow-md p-6 mb-4">
-      <h2 className="text-xl font-bold text-primary mb-2">{survey.title}</h2>
-      <p className="text-text-primary mb-4">{survey.description}</p>
+  const renderSurveyCard = (survey: {
+    id: number;
+    title: string;
+    description: string;
+    endDate: string;
+    participants: number;
+    questions: number;
+  }, type: string) => (
+    <div key={survey.id} className="bg-background rounded-xl shadow-card p-spacing-2 mb-spacing border border-gray-light">
+      <h2 className="text-large font-bold text-primary mb-2">{survey.title}</h2>
+      <p className="text-text-primary mb-spacing">{survey.description}</p>
       
-      <div className="flex flex-wrap gap-x-6 gap-y-2 mb-4">
+      <div className="flex flex-wrap gap-x-6 gap-y-2 mb-spacing">
         <div className="flex items-center text-text-secondary">
           <IoCalendarOutline className="ml-1" />
           <span>تنتهي في: {survey.endDate}</span>
@@ -80,7 +94,7 @@ export default function Surveys() {
         </div>
       </div>
       
-      <div className="mt-4">
+      <div className="mt-spacing">
         <Link href={`/surveys/${type}/${survey.id}`}>
           <CustomButton>المشاركة في الاستبيان</CustomButton>
         </Link>
@@ -89,16 +103,17 @@ export default function Surveys() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-primary p-6 rounded-b-3xl">
-        <h1 className="text-2xl font-bold text-white text-center">الاستبيانات</h1>
+    <div className="min-h-screen bg-background">
+      {/* Header Section */}
+      <div className="bg-primary p-spacing-2 rounded-b-3xl">
+        <h1 className="text-large font-bold text-text-white text-center">الاستبيانات</h1>
       </div>
       
-      <div className="container mx-auto px-4 py-8">
+      <div className="px-spacing-2 py-spacing-2">
         {/* Tab Navigation */}
-        <div className="flex border-b border-gray-200">
+        <div className="flex border-b border-gray-light">
           <button
-            className={`py-3 px-6 font-medium ${
+            className={`py-3 px-6 font-bold ${
               activeTab === "public"
                 ? "text-primary border-b-2 border-primary"
                 : "text-text-secondary"
@@ -108,7 +123,7 @@ export default function Surveys() {
             الاستبيانات العامة
           </button>
           <button
-            className={`py-3 px-6 font-medium ${
+            className={`py-3 px-6 font-bold ${
               activeTab === "members"
                 ? "text-primary border-b-2 border-primary"
                 : "text-text-secondary"
@@ -120,12 +135,12 @@ export default function Surveys() {
         </div>
         
         {/* Tab Content */}
-        <div className="mt-6">
+        <div className="mt-spacing-2">
           {activeTab === "public" ? (
             publicSurveys.length > 0 ? (
               publicSurveys.map(survey => renderSurveyCard(survey, "public"))
             ) : (
-              <div className="text-center py-10 bg-white rounded-lg shadow-md">
+              <div className="text-center py-10 bg-background rounded-xl shadow-card">
                 <p className="text-text-secondary">لا توجد استبيانات عامة متاحة حالياً</p>
               </div>
             )
@@ -133,7 +148,7 @@ export default function Surveys() {
             memberSurveys.length > 0 ? (
               memberSurveys.map(survey => renderSurveyCard(survey, "members"))
             ) : (
-              <div className="text-center py-10 bg-white rounded-lg shadow-md">
+              <div className="text-center py-10 bg-background rounded-xl shadow-card">
                 <p className="text-text-secondary">لا توجد استبيانات للأعضاء متاحة حالياً</p>
               </div>
             )

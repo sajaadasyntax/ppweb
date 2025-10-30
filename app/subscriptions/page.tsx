@@ -4,7 +4,8 @@ import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthContext } from "@/context/AuthContext";
 import CustomButton from "@/components/CustomButton";
-import { IoCalendarOutline, IoCheckmarkCircle, IoCloseCircle } from "react-icons/io5";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import { IoCalendarOutline, IoCheckmarkCircle } from "react-icons/io5";
 
 const mockSubscriptions = [
   {
@@ -63,10 +64,16 @@ export default function Subscriptions() {
   const [selectedSubscription, setSelectedSubscription] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!authContext?.token) {
+    // Only redirect after hydration is complete
+    if (authContext?.isHydrated && !authContext?.token) {
       router.push("/auth/login");
     }
-  }, [authContext?.token, router]);
+  }, [authContext?.token, authContext?.isHydrated, router]);
+
+  // Show loading state while hydrating
+  if (!authContext?.isHydrated) {
+    return <LoadingSpinner />;
+  }
 
   if (!authContext?.token) {
     return null;
@@ -81,42 +88,43 @@ export default function Subscriptions() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-primary p-6 rounded-b-3xl">
-        <h1 className="text-2xl font-bold text-white text-center">الاشتراكات</h1>
+    <div className="min-h-screen bg-background">
+      {/* Header Section */}
+      <div className="bg-primary p-spacing-2 rounded-b-3xl">
+        <h1 className="text-large font-bold text-text-white text-center">الاشتراكات</h1>
       </div>
       
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="px-spacing-2 py-spacing-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-spacing-2">
           {mockSubscriptions.map((subscription) => (
             <div 
               key={subscription.id} 
-              className={`bg-white rounded-lg shadow-md overflow-hidden border ${
-                subscription.isRecommended ? "border-primary" : "border-gray-200"
+              className={`bg-background rounded-xl shadow-card overflow-hidden border ${
+                subscription.isRecommended ? "border-primary" : "border-gray-light"
               }`}
             >
               {subscription.isRecommended && (
-                <div className="bg-primary text-white text-center py-2">
-                  <span className="text-sm font-medium">الاشتراك الموصى به</span>
+                <div className="bg-primary text-text-white text-center py-2">
+                  <span className="text-small font-bold">الاشتراك الموصى به</span>
                 </div>
               )}
               
-              <div className="p-6">
-                <h2 className="text-xl font-bold text-primary mb-2">{subscription.title}</h2>
+              <div className="p-spacing-2">
+                <h2 className="text-large font-bold text-primary mb-2">{subscription.title}</h2>
                 
-                <div className="flex items-end mb-4">
-                  <span className="text-3xl font-bold text-text-primary">{subscription.price}</span>
+                <div className="flex items-end mb-spacing">
+                  <span className="text-xlarge font-bold text-text-primary">{subscription.price}</span>
                   <span className="text-text-secondary mr-1">{subscription.currency}</span>
                   <span className="text-text-secondary mr-2">/ {subscription.period}</span>
                 </div>
                 
-                <div className="flex items-center text-text-secondary text-sm mb-4">
+                <div className="flex items-center text-text-secondary text-small mb-spacing">
                   <IoCalendarOutline className="ml-1" />
                   <span>{`${subscription.startDate} إلى ${subscription.endDate}`}</span>
                 </div>
                 
-                <div className="border-t border-gray-200 my-4 pt-4">
-                  <h3 className="font-medium text-text-primary mb-3">المميزات:</h3>
+                <div className="border-t border-gray-light my-spacing pt-spacing">
+                  <h3 className="font-bold text-text-primary mb-3">المميزات:</h3>
                   <ul className="space-y-2">
                     {subscription.features.map((feature, index) => (
                       <li key={index} className="flex items-center text-text-primary">
@@ -127,7 +135,7 @@ export default function Subscriptions() {
                   </ul>
                 </div>
                 
-                <div className="mt-6">
+                <div className="mt-spacing-2">
                   <CustomButton 
                     className="w-full" 
                     onClick={() => handleSubscribe(subscription.id)}

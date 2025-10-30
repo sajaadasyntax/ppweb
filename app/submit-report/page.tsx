@@ -1,25 +1,26 @@
 "use client";
 
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AuthContext } from "@/context/AuthContext";
+import { apiClient } from "@/context/apiContext";
 import AppTextInput from "@/components/AppTextInput";
 import CustomButton from "@/components/CustomButton";
-import { IoAttach, IoCheckmarkCircle } from "react-icons/io5";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
-const reportTypes = [
-  "تقرير نشاط",
-  "تقرير مالي",
-  "تقرير إنجاز",
-  "تقرير مشروع",
-  "تقرير أداء",
-  "أخرى",
-];
+interface ReportFormData {
+  title: string;
+  type: string;
+  description: string;
+  date: string;
+  attachmentName: string;
+}
 
 export default function SubmitReport() {
-  const authContext = useContext(AuthContext);
   const router = useRouter();
-  const [formData, setFormData] = useState({
+  const authContext = useContext(AuthContext);
+  const { token } = authContext;
+  const [formData, setFormData] = useState<ReportFormData>({
     title: "",
     type: "تقرير نشاط",
     description: "",
@@ -29,24 +30,27 @@ export default function SubmitReport() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authContext?.token) {
+    // Only redirect after hydration is complete
+    if (authContext?.isHydrated && !token) {
       router.push("/auth/login");
     }
-  }, [authContext?.token, router]);
+  }, [token, authContext?.isHydrated, router]);
 
-  if (!authContext?.token) {
-    return null;
+  // Show loading state while hydrating
+  if (!authContext?.isHydrated) {
+    return <LoadingSpinner />;
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
     
-    // Clear error when field is edited
+    // Clear error for this field when user starts typing
     if (errors[name]) {
-      setErrors(prev => {
+      setErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors[name];
         return newErrors;
@@ -55,11 +59,9 @@ export default function SubmitReport() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFormData(prev => ({
-        ...prev,
-        attachmentName: e.target.files?.[0].name || "",
-      }));
+    const file = e.target.files?.[0];
+    if (file) {
+      setFormData((prev) => ({ ...prev, attachmentName: file.name }));
     }
   };
 
@@ -82,18 +84,24 @@ export default function SubmitReport() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
       setSubmitting(true);
+      setApiError(null);
       
-      // Simulate API call
-      setTimeout(() => {
-        setSubmitting(false);
+      try {
+        if (!token) {
+          throw new Error("يجب تسجيل الدخول أولاً");
+        }
+        
+        // Call the API to submit the report
+        await apiClient.reports.submit(token, formData);
+        
         setSubmitted(true);
         
-        // Reset form after 3 seconds
+        // Reset form after success
         setTimeout(() => {
           setSubmitted(false);
           setFormData({
@@ -104,92 +112,80 @@ export default function SubmitReport() {
             attachmentName: "",
           });
         }, 3000);
-      }, 1500);
+      } catch (error) {
+        console.error("Error submitting report:", error);
+        setApiError(error instanceof Error ? error.message : "حدث خطأ أثناء إرسال التقرير");
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
-  if (submitted) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-primary p-6 rounded-b-3xl">
-          <h1 className="text-2xl font-bold text-white text-center">تقديم التقارير</h1>
-        </div>
-        
-        <div className="container mx-auto px-4 py-16">
-          <div className="bg-white rounded-lg shadow-md p-8 max-w-2xl mx-auto text-center">
-            <div className="flex justify-center mb-4">
-              <div className="bg-green-100 p-4 rounded-full">
-                <IoCheckmarkCircle className="text-green-600" size={48} />
-              </div>
-            </div>
-            <h2 className="text-2xl font-bold text-primary mb-2">تم تقديم التقرير بنجاح</h2>
-            <p className="text-text-secondary mb-6">
-              شكراً لك. سيتم مراجعة التقرير والرد عليه في أقرب وقت.
-            </p>
-            <CustomButton onClick={() => setSubmitted(false)}>تقديم تقرير آخر</CustomButton>
-          </div>
-        </div>
-      </div>
-    );
+  if (!token) {
+    return null;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-primary p-6 rounded-b-3xl">
-        <h1 className="text-2xl font-bold text-white text-center">تقديم التقارير</h1>
-      </div>
+    <div className="container mx-auto px-4 py-6">
+      <h1 className="text-2xl font-bold mb-6 text-right">تقديم تقرير جديد</h1>
       
-      <div className="container mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
-          <h2 className="text-xl font-bold text-primary mb-6">نموذج تقديم التقرير</h2>
-          
-          <form onSubmit={handleSubmit}>
+      {apiError && (
+        <div className="bg-red-100 text-red-700 p-4 rounded-md mb-6 text-right">
+          {apiError}
+        </div>
+      )}
+      
+      {submitted ? (
+        <div className="bg-green-100 text-green-700 p-6 rounded-lg text-center">
+          <h2 className="text-xl font-semibold mb-2">تم إرسال التقرير بنجاح</h2>
+          <p>شكراً لك. سيتم مراجعة التقرير قريباً.</p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="mb-4">
             <AppTextInput
               label="عنوان التقرير"
               name="title"
-              placeholder="أدخل عنوان التقرير"
               value={formData.title}
               onChange={handleChange}
+              placeholder="أدخل عنوان التقرير"
               error={errors.title}
+              required
             />
-            
-            <div className="mb-4">
-              <label className="block text-text-primary mb-2 text-sm font-medium">
-                نوع التقرير
-              </label>
-              <select
-                name="type"
-                value={formData.type}
-                onChange={handleChange}
-                className="w-full p-4 rounded-lg border border-gray-300 text-text-primary bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              >
-                {reportTypes.map((type, index) => (
-                  <option key={index} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-text-primary mb-2 text-sm font-medium">
-                وصف التقرير
-              </label>
-              <textarea
-                name="description"
-                placeholder="اكتب وصفاً مفصلاً للتقرير"
-                value={formData.description}
-                onChange={handleChange}
-                rows={4}
-                className={`w-full p-4 rounded-lg border ${
-                  errors.description
-                    ? "border-error text-error"
-                    : "border-gray-300 text-text-primary"
-                } bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent`}
-              />
-              {errors.description && (
-                <p className="mt-1 text-sm text-error">{errors.description}</p>
-              )}
-            </div>
-            
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-gray-700 mb-2 text-right">نوع التقرير</label>
+            <select
+              name="type"
+              value={formData.type}
+              onChange={handleChange}
+              className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            >
+              <option value="تقرير نشاط">تقرير نشاط</option>
+              <option value="تقرير مالي">تقرير مالي</option>
+              <option value="تقرير مخالفات">تقرير مخالفات</option>
+              <option value="اقتراح تطوير">اقتراح تطوير</option>
+              <option value="أخرى">أخرى</option>
+            </select>
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-gray-700 mb-2 text-right">وصف التقرير</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              placeholder="تفاصيل التقرير..."
+              className={`w-full p-3 h-32 rounded-lg border ${
+                errors.description ? "border-red-500" : "border-gray-300"
+              } focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent`}
+              required
+            />
+            {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
+          </div>
+          
+          <div className="mb-4">
             <AppTextInput
               label="تاريخ التقرير"
               name="date"
@@ -197,42 +193,30 @@ export default function SubmitReport() {
               value={formData.date}
               onChange={handleChange}
               error={errors.date}
+              required
             />
-            
-            <div className="mb-6">
-              <label className="block text-text-primary mb-2 text-sm font-medium">
-                المرفقات (اختياري)
-              </label>
-              <div className="flex items-center">
-                <label className="flex items-center justify-center px-4 py-2 bg-gray-100 text-text-secondary rounded-lg cursor-pointer hover:bg-gray-200 transition-colors">
-                  <IoAttach className="ml-2" />
-                  <span>اختر ملفاً</span>
-                  <input
-                    type="file"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                </label>
-                {formData.attachmentName && (
-                  <span className="mr-3 text-text-primary">
-                    {formData.attachmentName}
-                  </span>
-                )}
-              </div>
-            </div>
-            
-            <div className="mt-6">
-              <CustomButton 
-                type="submit" 
-                className="w-full" 
-                disabled={submitting}
-              >
-                {submitting ? "جاري الإرسال..." : "تقديم التقرير"}
-              </CustomButton>
-            </div>
-          </form>
-        </div>
-      </div>
+          </div>
+          
+          <div className="mb-6">
+            <label className="block text-gray-700 mb-2 text-right">إرفاق ملف (اختياري)</label>
+            <input 
+              type="file"
+              onChange={handleFileChange}
+              className="block w-full text-gray-500 p-2 border border-gray-300 rounded-lg cursor-pointer bg-white"
+            />
+          </div>
+          
+          <div className="flex justify-end">
+            <CustomButton 
+              type="submit" 
+              disabled={submitting}
+              className="min-w-32"
+            >
+              {submitting ? "جاري الإرسال..." : "إرسال التقرير"}
+            </CustomButton>
+          </div>
+        </form>
+      )}
     </div>
   );
 } 
